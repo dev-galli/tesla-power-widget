@@ -80,11 +80,9 @@ class TeslaEnergyFlowCard extends HTMLElement {
           position: relative;
           width: 100%;
           min-height: 510px;
-          border-radius: 18px;
+          border-radius: 0;
           overflow: hidden;
-          background:
-            radial-gradient(1150px 420px at 50% -140px, rgba(185, 210, 245, 0.12), transparent 60%),
-            linear-gradient(180deg, var(--tef-bg-top) 0%, var(--tef-bg-mid) 52%, var(--tef-bg-bot) 100%);
+          background: transparent;
           color: var(--tef-text-main);
           font-family: var(--tef-font-main);
         }
@@ -112,6 +110,7 @@ class TeslaEnergyFlowCard extends HTMLElement {
           opacity: 0;
           transition: opacity .35s ease;
           pointer-events: none;
+          display: none;
         }
 
         .header {
@@ -239,6 +238,7 @@ class TeslaEnergyFlowCard extends HTMLElement {
           height: 172px;
           perspective: 850px;
           pointer-events: none;
+          display: none;
         }
 
         .cube {
@@ -331,6 +331,7 @@ class TeslaEnergyFlowCard extends HTMLElement {
           height: 36%;
           pointer-events: none;
           background: linear-gradient(180deg, rgba(4,8,12,0) 0%, rgba(4,8,12,.76) 32%, #04070d 100%);
+          display: none;
         }
 
         .legend {
