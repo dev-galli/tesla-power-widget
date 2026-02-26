@@ -33,6 +33,8 @@ title: Tesla Energy
 show_header: true
 show_theme_toggle: false
 theme_mode: auto
+model_url: /hacsfiles/tesla-power-widget/home.glb
+model_scale: 1
 entities:
   solar_power: sensor.pv_power
   home_power: sensor.home_load_power
@@ -56,6 +58,12 @@ sun_entity: sun.sun
 - `entities.car_soc` (%)
 - `entities.weather` (opzionale, per day/night auto)
 - `sun_entity` (default `sun.sun`)
+
+## Modello 3D GLB
+
+- `model_url`: path del modello GLB (default: `/hacsfiles/tesla-power-widget/home.glb`)
+- `model_scale`: scala modello (`1` default)
+- Se il modello non si carica, la card usa automaticamente il cubo fallback.
 
 ## Day/Night
 

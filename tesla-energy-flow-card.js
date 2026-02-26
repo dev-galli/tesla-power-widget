@@ -12,6 +12,8 @@ class TeslaEnergyFlowCard extends HTMLElement {
     this._weatherState = { isDay: null, cloud: null };
     this._initialized = false;
     this._elements = {};
+    this._modelViewerReady = false;
+    this._modelLoadToken = 0;
   }
 
   setConfig(config) {
@@ -21,6 +23,12 @@ class TeslaEnergyFlowCard extends HTMLElement {
       show_header: true,
       show_theme_toggle: false,
       entities: {},
+      model_url: "/hacsfiles/tesla-power-widget/home.glb",
+      model_scale: 1.6,
+      model_orbit_theta: 39,
+      model_orbit_phi: 82,
+      model_orbit_radius: 24.5,
+      model_fov: 26,
       ...config,
     };
 
@@ -31,6 +39,7 @@ class TeslaEnergyFlowCard extends HTMLElement {
       this._initialized = true;
     }
 
+    this._setupModel();
     this._setupThemeControls();
     this._applyTheme();
     this._renderFromState();
@@ -48,6 +57,11 @@ class TeslaEnergyFlowCard extends HTMLElement {
   setDemoData(payload) {
     this._demoData = payload;
     this._renderFromState();
+  }
+
+  setModelDebug(partial = {}) {
+    this._config = { ...this._config, ...partial };
+    this._applyModelViewParams();
   }
 
   _renderBase() {
@@ -238,7 +252,26 @@ class TeslaEnergyFlowCard extends HTMLElement {
           height: 172px;
           perspective: 850px;
           pointer-events: none;
-          display: none;
+          display: block;
+          z-index: 2;
+        }
+
+        .model-wrap {
+          position: absolute;
+          left: 50%;
+          top: 57%;
+          width: 330px;
+          height: 330px;
+          transform: translate(-50%, -50%);
+          z-index: 2;
+          pointer-events: none;
+        }
+
+        .model-viewer {
+          width: 100%;
+          height: 100%;
+          display: block;
+          --progress-bar-color: transparent;
         }
 
         .cube {
@@ -247,15 +280,16 @@ class TeslaEnergyFlowCard extends HTMLElement {
           height: 172px;
           transform-style: preserve-3d;
           transform: rotateX(-21deg) rotateY(34deg);
+          filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
         }
 
         .face {
           position: absolute;
           width: 172px;
           height: 172px;
-          border: 1px solid rgba(214, 232, 255, 0.34);
-          background: #182233;
-          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(230, 242, 255, 0.7);
+          background: rgba(40, 60, 92, 0.86);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
         }
 
         .face.front { transform: translateZ(86px); }
@@ -409,7 +443,21 @@ class TeslaEnergyFlowCard extends HTMLElement {
         <g id="flowsCoreLayer"></g>
       </svg>
 
-      <div class="cube-wrap" aria-hidden="true">
+      <div class="model-wrap" aria-hidden="true">
+        <model-viewer
+          id="modelViewer"
+          class="model-viewer"
+          camera-controls
+          disable-pan
+          autoplay
+          shadow-intensity="0"
+          environment-image="neutral"
+          exposure="1.05"
+          interaction-prompt="none"
+        ></model-viewer>
+      </div>
+
+      <div class="cube-wrap" id="cubeFallback" aria-hidden="true">
         <div class="cube">
           <div class="face front"></div>
           <div class="face back"></div>
@@ -474,6 +522,8 @@ class TeslaEnergyFlowCard extends HTMLElement {
       themeSwitch: root.querySelector("#themeSwitch"),
       sky: root.querySelector("#sky"),
       moon: root.querySelector("#moon"),
+      modelViewer: root.querySelector("#modelViewer"),
+      cubeFallback: root.querySelector("#cubeFallback"),
       wiresLayer: root.querySelector("#wiresLayer"),
       flowsMainLayer: root.querySelector("#flowsMainLayer"),
       flowsCoreLayer: root.querySelector("#flowsCoreLayer"),
@@ -489,6 +539,130 @@ class TeslaEnergyFlowCard extends HTMLElement {
     this._bindThemeSwitch();
     this._placeNodes();
     this._drawIdleWires();
+  }
+
+  async _ensureModelViewerLoaded() {
+    if (window.customElements?.get("model-viewer")) {
+      this._modelViewerReady = true;
+      return true;
+    }
+
+    const existing = document.querySelector("script[data-tef-model-viewer='1']");
+    if (!existing) {
+      const script = document.createElement("script");
+      script.type = "module";
+      script.src = "https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js";
+      script.dataset.tefModelViewer = "1";
+      document.head.appendChild(script);
+    }
+
+    for (let i = 0; i < 30; i++) {
+      if (window.customElements?.get("model-viewer")) {
+        this._modelViewerReady = true;
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    return false;
+  }
+
+  _candidateModelUrls() {
+    const provided = this._config.model_url || "/hacsfiles/tesla-power-widget/home.glb";
+    const out = [provided];
+
+    if (provided.includes("home.glb")) out.push(provided.replace("home.glb", "casa.glb"));
+    if (provided.includes("casa.glb")) out.push(provided.replace("casa.glb", "home.glb"));
+
+    if (!provided.includes("/hacsfiles/tesla-power-widget/")) {
+      out.push("/hacsfiles/tesla-power-widget/home.glb");
+      out.push("/hacsfiles/tesla-power-widget/casa.glb");
+    }
+
+    return [...new Set(out)];
+  }
+
+  _applyModelViewParams() {
+    const mv = this._elements.modelViewer;
+    if (!mv) return;
+
+    const scale = this._toNumber(this._config.model_scale, 1.6);
+    const theta = this._toNumber(this._config.model_orbit_theta, 39);
+    const phi = this._toNumber(this._config.model_orbit_phi, 82);
+    const radius = this._toNumber(this._config.model_orbit_radius, 24.5);
+    const fov = this._toNumber(this._config.model_fov, 26);
+
+    mv.setAttribute("camera-orbit", `${theta}deg ${phi}deg ${radius}m`);
+    mv.setAttribute("field-of-view", `${fov}deg`);
+    mv.setAttribute("min-camera-orbit", `auto auto ${Math.max(0.6, radius - 0.8).toFixed(2)}m`);
+    mv.setAttribute("max-camera-orbit", `auto auto ${(radius + 1.4).toFixed(2)}m`);
+    mv.style.transform = `scale(${Math.max(0.2, scale)})`;
+  }
+
+  _tryModelUrl(url, token) {
+    return new Promise((resolve) => {
+      const mv = this._elements.modelViewer;
+      if (!mv) return resolve(false);
+
+      const done = (ok) => {
+        if (token !== this._modelLoadToken) return;
+        cleanup();
+        resolve(ok);
+      };
+
+      const onLoad = () => done(true);
+      const onError = () => done(false);
+      const timer = setTimeout(() => done(false), 6000);
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        mv.removeEventListener("load", onLoad);
+        mv.removeEventListener("error", onError);
+      };
+
+      mv.addEventListener("load", onLoad, { once: true });
+      mv.addEventListener("error", onError, { once: true });
+      mv.setAttribute("src", url);
+    });
+  }
+
+  async _setupModel() {
+    if (!this._elements.modelViewer || !this._elements.cubeFallback) return;
+
+    this._modelLoadToken += 1;
+    const token = this._modelLoadToken;
+
+    // Browsers block GLB fetch in file:// context. Keep fallback cube visible.
+    if (window.location?.protocol === "file:") {
+      this._elements.modelViewer.style.display = "none";
+      this._elements.cubeFallback.style.display = "block";
+      return;
+    }
+
+    const ok = await this._ensureModelViewerLoaded();
+    if (!ok) {
+      this._elements.modelViewer.style.display = "none";
+      this._elements.cubeFallback.style.display = "block";
+      return;
+    }
+
+    const candidates = this._candidateModelUrls();
+    this._elements.modelViewer.style.display = "none";
+    this._applyModelViewParams();
+    this._elements.cubeFallback.style.display = "block";
+
+    for (const url of candidates) {
+      const loaded = await this._tryModelUrl(url, token);
+      if (token !== this._modelLoadToken) return;
+      if (loaded) {
+        this._elements.modelViewer.style.display = "block";
+        this._elements.cubeFallback.style.display = "none";
+        return;
+      }
+    }
+
+    this._elements.modelViewer.style.display = "none";
+    this._elements.cubeFallback.style.display = "block";
   }
 
   _setupThemeControls() {

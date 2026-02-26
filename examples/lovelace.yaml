@@ -3,6 +3,8 @@ title: Tesla Energy
 show_header: true
 show_theme_toggle: false
 theme_mode: auto
+model_url: /hacsfiles/tesla-power-widget/home.glb
+model_scale: 1
 entities:
   solar_power: sensor.pv_power
   home_power: sensor.home_load_power
