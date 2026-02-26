@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tesla Energy Flow Card Demo</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      background: #070d15;
+      color: #e9f1ff;
+      font-family: Montserrat, "Segoe UI", sans-serif;
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px 24px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 12px;
+      background: rgba(10,16,26,0.66);
+    }
+
+    .toolbar button {
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.08);
+      color: #eff6ff;
+      border-radius: 9px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+
+    .toolbar code {
+      font-size: 12px;
+      color: #9dc3ff;
+    }
+
+    tesla-energy-flow-card {
+      width: 100%;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="toolbar">
+      <button id="btn-auto">Theme Auto</button>
+      <button id="btn-day">Theme Day</button>
+      <button id="btn-night">Theme Night</button>
+      <button id="btn-no-car">Toggle Car Entity</button>
+      <span>Demo API: <code>window.demoUpdate(payload)</code></span>
+    </div>
+
+    <tesla-energy-flow-card id="card"></tesla-energy-flow-card>
+  </div>
+
+  <script src="./tesla-energy-flow-card.js"></script>
+  <script>
+    const card = document.getElementById("card");
+
+    let carEnabled = true;
+    const baseConfig = {
+      title: "Tesla Energy",
+      show_header: true,
+      show_theme_toggle: true,
+      theme_mode: "auto",
+      entities: {}
+    };
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function pushData() {
+      const t = Date.now() / 1000;
+      const solar = clamp(4.5 + Math.sin(t / 14) * 2.6, 0, 9);
+      const home = clamp(2.5 + Math.cos(t / 8) * 0.9 + Math.sin(t / 19) * 0.3, 1, 6);
+      const carPower = carEnabled && (Math.sin(t / 29) + 1) / 2 > 0.68 ? clamp(3.2 + Math.sin(t / 5) * 0.6, 2.2, 4.8) : null;
+
+      let batteryPower = clamp((solar - home - (carPower || 0)) * 0.5, -4.8, 4.8);
+      if (Math.random() > 0.93) batteryPower = null;
+
+      const grid = (solar - home - (carPower || 0) - (batteryPower || 0)) * -1;
+
+      const payload = {
+        solar,
+        home,
+        grid,
+        batteryPower,
+        batterySoc: clamp(62 + Math.sin(t / 50) * 18, 10, 95),
+        carPower,
+        carSoc: carPower ? clamp(44 + Math.sin(t / 45) * 26, 15, 100) : null,
+      };
+
+      card.setDemoData(payload);
+    }
+
+    function setTheme(mode) {
+      if (typeof card.setConfig === "function") {
+        card.setConfig({ ...baseConfig, theme_mode: mode });
+      }
+    }
+
+    document.getElementById("btn-auto").addEventListener("click", () => setTheme("auto"));
+    document.getElementById("btn-day").addEventListener("click", () => setTheme("day"));
+    document.getElementById("btn-night").addEventListener("click", () => setTheme("night"));
+    document.getElementById("btn-no-car").addEventListener("click", () => {
+      carEnabled = !carEnabled;
+    });
+
+    window.demoUpdate = (payload) => {
+      if (typeof card.setDemoData === "function") card.setDemoData(payload);
+    };
+
+    function startDemo() {
+      if (typeof card.setConfig !== "function") {
+        console.error("tesla-energy-flow-card is not registered.");
+        return;
+      }
+      card.setConfig(baseConfig);
+      pushData();
+      setInterval(pushData, 1200);
+    }
+
+    if (customElements.get("tesla-energy-flow-card")) {
+      startDemo();
+    } else {
+      customElements.whenDefined("tesla-energy-flow-card").then(startDemo);
+    }
+  </script>
+</body>
+</html>

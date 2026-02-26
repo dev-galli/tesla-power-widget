@@ -1,0 +1,15 @@
+type: custom:tesla-energy-flow-card
+title: Tesla Energy
+show_header: true
+show_theme_toggle: false
+theme_mode: auto
+entities:
+  solar_power: sensor.pv_power
+  home_power: sensor.home_load_power
+  grid_power: sensor.grid_power
+  battery_power: sensor.powerwall_power
+  battery_soc: sensor.powerwall_soc
+  car_power: sensor.ev_charging_power
+  car_soc: sensor.ev_battery_level
+  weather: weather.milano
+sun_entity: sun.sun
