@@ -1,6 +1,5 @@
-/* Tesla Energy Flow Card - dependency free custom Lovelace card */
 class TeslaEnergyFlowCard extends HTMLElement {
-  static version = "0.1.0";
+  static version = "0.2.0";
 
   constructor() {
     super();
@@ -8,40 +7,24 @@ class TeslaEnergyFlowCard extends HTMLElement {
     this._config = {};
     this._hass = null;
     this._demoData = null;
-    this._themeMode = "auto";
-    this._weatherState = { isDay: null, cloud: null };
     this._initialized = false;
     this._elements = {};
-    this._modelViewerReady = false;
-    this._modelLoadToken = 0;
   }
 
   setConfig(config) {
     this._config = {
       title: "Energy",
-      theme_mode: "auto",
-      show_header: true,
-      show_theme_toggle: false,
       entities: {},
-      model_url: "/hacsfiles/tesla-power-widget/home.glb",
-      model_scale: 1.6,
-      model_orbit_theta: 39,
-      model_orbit_phi: 82,
-      model_orbit_radius: 24.5,
-      model_fov: 26,
+      image_url: "/hacsfiles/tesla-power-widget/home.png",
       ...config,
     };
-
-    this._themeMode = this._config.theme_mode || "auto";
 
     if (!this._initialized) {
       this._renderBase();
       this._initialized = true;
     }
 
-    this._setupModel();
-    this._setupThemeControls();
-    this._applyTheme();
+    this._elements.image.src = this._config.image_url;
     this._renderFromState();
   }
 
@@ -59,11 +42,6 @@ class TeslaEnergyFlowCard extends HTMLElement {
     this._renderFromState();
   }
 
-  setModelDebug(partial = {}) {
-    this._config = { ...this._config, ...partial };
-    this._applyModelViewParams();
-  }
-
   _renderBase() {
     const root = document.createElement("div");
     root.className = "card-root";
@@ -71,21 +49,13 @@ class TeslaEnergyFlowCard extends HTMLElement {
     root.innerHTML = `
       <style>
         :host {
-          --tef-bg-top: #1f2b3a;
-          --tef-bg-mid: #121b2a;
-          --tef-bg-bot: #090f17;
-          --tef-text-main: #f3f7ff;
-          --tef-text-dim: rgba(232, 239, 252, 0.68);
-          --tef-wire-idle: rgba(255, 255, 255, 0.2);
-          --tef-solar: #f7be2e;
-          --tef-grid: #79c8ff;
-          --tef-battery: #69df8c;
-          --tef-car: #c8a5ff;
-          --tef-panel-bg: rgba(7, 13, 22, 0.52);
-          --tef-panel-border: rgba(255, 255, 255, 0.14);
-          --tef-font-main: "Montserrat", "Avenir Next", "Segoe UI", sans-serif;
+          --bg: #0F0F0F;
+          --text-main: #f2f2f2;
+          --text-dim: #b9b9b9;
+          --line: #6f6f6f;
+          --font: "Inter", sans-serif;
           display: block;
-          min-height: 510px;
+          min-height: 560px;
         }
 
         * { box-sizing: border-box; }
@@ -93,695 +63,164 @@ class TeslaEnergyFlowCard extends HTMLElement {
         .card-root {
           position: relative;
           width: 100%;
-          min-height: 510px;
-          border-radius: 0;
+          min-height: 560px;
+          background: var(--bg);
+          color: var(--text-main);
+          font-family: var(--font);
           overflow: hidden;
-          background: transparent;
-          color: var(--tef-text-main);
-          font-family: var(--tef-font-main);
         }
 
-        .sky {
+        .center-wrap {
           position: absolute;
-          inset: 0;
-          pointer-events: none;
-          background:
-            radial-gradient(760px 260px at 20% 16%, rgba(210, 223, 244, 0.11), transparent 70%),
-            radial-gradient(760px 280px at 76% 12%, rgba(212, 230, 255, 0.12), transparent 70%);
-          opacity: 0.58;
-          transition: opacity .35s ease;
-        }
-
-        .moon {
-          position: absolute;
-          right: 11%;
-          top: 8%;
-          width: 56px;
-          height: 56px;
-          border-radius: 50%;
-          background: radial-gradient(circle at 43% 43%, #f6faff 0%, #dce8ff 45%, rgba(201, 220, 255, 0.08) 70%, rgba(181, 208, 255, 0) 76%);
-          box-shadow: 0 0 24px rgba(213, 230, 255, 0.44);
-          opacity: 0;
-          transition: opacity .35s ease;
-          pointer-events: none;
-          display: none;
-        }
-
-        .header {
-          position: absolute;
-          left: 12px;
-          right: 12px;
-          top: 12px;
-          z-index: 3;
+          left: 50%;
+          top: 56%;
+          transform: translate(-50%, -50%);
+          width: min(74%, 820px);
+          max-height: 70%;
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-          padding: 7px 10px;
-          border-radius: 10px;
-          border: 1px solid var(--tef-panel-border);
-          background: var(--tef-panel-bg);
-          backdrop-filter: blur(7px);
-          font-size: 11px;
-          letter-spacing: .03em;
-          text-transform: uppercase;
-          color: #dce8fb;
+          justify-content: center;
+          pointer-events: none;
         }
 
-        .header.hidden { display: none; }
-
-        .left-group,
-        .right-group {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          min-width: 0;
-        }
-
-        .title {
-          font-size: 12px;
-          font-weight: 700;
-          white-space: nowrap;
-        }
-
-        .weather,
-        .updated {
-          color: rgba(223, 235, 252, 0.82);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 200px;
-        }
-
-        .seg {
-          display: inline-flex;
-          align-items: center;
-          gap: 3px;
-          border: 1px solid rgba(255,255,255,0.14);
-          border-radius: 8px;
-          background: rgba(14, 22, 34, 0.75);
-          padding: 2px;
-        }
-
-        .seg.hidden { display: none; }
-
-        .seg button {
-          border: 0;
-          background: transparent;
-          color: #d5e3fa;
-          font: inherit;
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: .04em;
-          text-transform: uppercase;
-          border-radius: 6px;
-          padding: 4px 7px;
-          cursor: pointer;
-        }
-
-        .seg button.active {
-          background: rgba(255,255,255,0.16);
-          color: #ffffff;
-        }
-
-        .layer {
-          position: absolute;
-          inset: 0;
+        .home-image {
           width: 100%;
-          height: 100%;
-        }
-
-        .wire-idle {
-          stroke: var(--tef-wire-idle);
-          stroke-width: 1.8;
-          stroke-linecap: square;
-          fill: none;
-        }
-
-        .flow-main {
-          stroke-width: 3.6;
-          stroke-linecap: square;
-          fill: none;
-          stroke-dasharray: 7 11;
-          animation: tefFlow 1.2s linear infinite;
-          filter: drop-shadow(0 0 6px rgba(255,255,255,0.22));
-          opacity: 0;
-        }
-
-        .flow-core {
-          stroke-width: 1.2;
-          stroke-linecap: square;
-          fill: none;
-          stroke: rgba(255,255,255,0.86);
-          stroke-dasharray: 2 14;
-          animation: tefFlow .72s linear infinite;
-          opacity: 0;
-        }
-
-        @keyframes tefFlow {
-          from { stroke-dashoffset: 0; }
-          to { stroke-dashoffset: -36; }
-        }
-
-        .cube-wrap {
-          position: absolute;
-          left: 50%;
-          top: 57%;
-          transform: translate(-50%, -50%);
-          width: 172px;
-          height: 172px;
-          perspective: 850px;
-          pointer-events: none;
+          max-width: 820px;
+          max-height: 420px;
+          object-fit: contain;
           display: block;
-          z-index: 2;
         }
 
-        .model-wrap {
-          position: absolute;
-          left: 50%;
-          top: 57%;
-          width: 330px;
-          height: 330px;
-          transform: translate(-50%, -50%);
-          z-index: 2;
-          pointer-events: none;
-        }
-
-        .model-viewer {
-          width: 100%;
-          height: 100%;
-          display: block;
-          --progress-bar-color: transparent;
-        }
-
-        .cube {
-          position: absolute;
-          width: 172px;
-          height: 172px;
-          transform-style: preserve-3d;
-          transform: rotateX(-21deg) rotateY(34deg);
-          filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
-        }
-
-        .face {
-          position: absolute;
-          width: 172px;
-          height: 172px;
-          border: 1px solid rgba(230, 242, 255, 0.7);
-          background: rgba(40, 60, 92, 0.86);
-          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
-        }
-
-        .face.front { transform: translateZ(86px); }
-        .face.back { transform: rotateY(180deg) translateZ(86px); }
-        .face.right { transform: rotateY(90deg) translateZ(86px); }
-        .face.left { transform: rotateY(-90deg) translateZ(86px); }
-        .face.bottom { transform: rotateX(-90deg) translateZ(86px); background: #121a27; }
-
-        .face.top {
-          transform: rotateX(90deg) translateZ(86px);
-          background: #25354d;
-        }
-
-        .base-glow {
-          position: absolute;
-          left: 50%;
-          top: calc(57% + 100px);
-          width: 280px;
-          height: 12px;
-          transform: translateX(-50%);
-          background: transparent;
-          filter: none;
-          pointer-events: none;
+        .home-fallback {
+          width: min(100%, 820px);
+          height: 320px;
+          border: 1px solid #2b2b2b;
+          background: #121212;
+          color: #8f8f8f;
           display: none;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          letter-spacing: .02em;
         }
 
         .node {
           position: absolute;
           transform: translate(-50%, -50%);
-          min-width: 84px;
+          min-width: 150px;
           text-align: center;
           pointer-events: none;
-          transition: opacity .18s ease;
         }
 
         .node.hidden { opacity: 0; }
 
         .name {
-          font-size: 12px;
-          font-weight: 600;
-          line-height: 1.1;
-          color: var(--tef-text-dim);
+          font-size: 18px;
+          line-height: 1.2;
+          font-weight: 400;
+          color: var(--text-dim);
+          margin-bottom: 5px;
         }
 
         .value {
-          margin-top: 2px;
-          font-size: 29px;
-          font-weight: 700;
+          font-size: 52px;
           line-height: 1;
-          letter-spacing: -0.018em;
-          text-shadow: 0 1px 8px rgba(0,0,0,.34);
-        }
-
-        .meta {
-          margin-top: 5px;
-          display: inline-block;
-          font-size: 9px;
           font-weight: 700;
-          letter-spacing: .07em;
-          text-transform: uppercase;
-          color: rgba(245,251,255,0.82);
-          border: 1px solid rgba(255,255,255,0.18);
-          border-radius: 999px;
-          padding: 3px 6px;
-          background: rgba(10,16,26,0.5);
+          letter-spacing: -0.02em;
+          color: var(--text-main);
         }
 
-        .ground {
+        .line {
           position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          height: 36%;
-          pointer-events: none;
-          background: linear-gradient(180deg, rgba(4,8,12,0) 0%, rgba(4,8,12,.76) 32%, #04070d 100%);
-          display: none;
+          left: 50%;
+          width: 1px;
+          background: var(--line);
+          transform: translateX(-50%);
+          opacity: 0.95;
         }
 
-        .legend {
-          position: absolute;
-          right: 12px;
-          bottom: 12px;
-          z-index: 3;
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 5px 9px;
-          font-size: 9px;
-          letter-spacing: .05em;
-          text-transform: uppercase;
-          padding: 8px 9px;
-          border-radius: 9px;
-          border: 1px solid var(--tef-panel-border);
-          background: var(--tef-panel-bg);
+        .line.down {
+          top: calc(100% + 10px);
+          height: var(--line-len, 180px);
         }
 
-        .legend-item {
-          display: flex;
-          align-items: center;
-          gap: 6px;
+        .line.up {
+          bottom: calc(100% + 10px);
+          height: var(--line-len, 180px);
         }
 
-        .dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 2px;
-          box-shadow: 0 0 6px rgba(255,255,255,.24);
-        }
+        .line.hidden { display: none; }
 
-        .dot.solar { background: var(--tef-solar); }
-        .dot.grid { background: var(--tef-grid); }
-        .dot.battery { background: var(--tef-battery); }
-        .dot.car { background: var(--tef-car); }
-
-        @media (max-width: 768px) {
-          :host { min-height: 540px; }
-          .header { font-size: 10px; }
-          .value { font-size: 24px; }
-          .legend { grid-template-columns: 1fr; }
-          .cube-wrap { width: 148px; height: 148px; }
-          .cube, .face { width: 148px; height: 148px; }
-          .face.front { transform: translateZ(74px); }
-          .face.back { transform: rotateY(180deg) translateZ(74px); }
-          .face.right { transform: rotateY(90deg) translateZ(74px); }
-          .face.left { transform: rotateY(-90deg) translateZ(74px); }
-          .face.bottom { transform: rotateX(-90deg) translateZ(74px); }
-          .face.top { transform: rotateX(90deg) translateZ(74px); }
+        @media (max-width: 960px) {
+          :host { min-height: 620px; }
+          .card-root { min-height: 620px; }
+          .center-wrap { top: 58%; width: min(92%, 820px); }
+          .node { min-width: 100px; }
+          .name { font-size: 14px; }
+          .value { font-size: 36px; }
         }
       </style>
 
-      <div class="sky" id="sky"></div>
-      <div class="moon" id="moon"></div>
-
-      <div class="header" id="header">
-        <div class="left-group">
-          <div class="title" id="title"></div>
-          <div class="weather" id="weather">--</div>
-        </div>
-        <div class="right-group">
-          <div class="updated" id="updated">--</div>
-          <div class="seg" id="themeSwitch">
-            <button data-theme="auto" class="active">Auto</button>
-            <button data-theme="day">Day</button>
-            <button data-theme="night">Night</button>
-          </div>
-        </div>
+      <div class="center-wrap" aria-hidden="true">
+        <img class="home-image" id="homeImage" alt="Home" />
+        <div class="home-fallback" id="homeFallback">home.png non trovato</div>
       </div>
 
-      <svg class="layer" viewBox="0 0 1000 620" preserveAspectRatio="none" aria-hidden="true">
-        <g id="wiresLayer"></g>
-        <g id="flowsMainLayer"></g>
-        <g id="flowsCoreLayer"></g>
-      </svg>
-
-      <div class="model-wrap" aria-hidden="true">
-        <model-viewer
-          id="modelViewer"
-          class="model-viewer"
-          camera-controls
-          disable-pan
-          autoplay
-          shadow-intensity="0"
-          environment-image="neutral"
-          exposure="1.05"
-          interaction-prompt="none"
-        ></model-viewer>
-      </div>
-
-      <div class="cube-wrap" id="cubeFallback" aria-hidden="true">
-        <div class="cube">
-          <div class="face front"></div>
-          <div class="face back"></div>
-          <div class="face right"></div>
-          <div class="face left"></div>
-          <div class="face top"></div>
-          <div class="face bottom"></div>
-        </div>
-      </div>
-
-      <div class="base-glow" aria-hidden="true"></div>
-
-      <div class="node" id="n-solar">
-        <div class="name">Solar Panels</div>
-        <div class="value" data-k="solar">--</div>
-        <div class="meta" data-m="solar">--</div>
-      </div>
-
-      <div class="node" id="n-home">
-        <div class="name">Home</div>
+      <div class="node" id="n-home" style="left: 26%; top: 22%; --line-len: 238px;">
+        <div class="name">Casa</div>
         <div class="value" data-k="home">--</div>
-        <div class="meta" data-m="home">Load</div>
+        <div class="line down"></div>
       </div>
 
-      <div class="node" id="n-grid">
-        <div class="name">Grid</div>
+      <div class="node" id="n-solar" style="left: 66%; top: 20%; --line-len: 206px;">
+        <div class="name">Pannelli Solari</div>
+        <div class="value" data-k="solar">--</div>
+        <div class="line down"></div>
+      </div>
+
+      <div class="node" id="n-grid" style="left: 84%; top: 66%; --line-len: 125px;">
+        <div class="name">Rete</div>
         <div class="value" data-k="grid">--</div>
-        <div class="meta" data-m="grid">Import</div>
+        <div class="line up"></div>
       </div>
 
-      <div class="node" id="n-battery">
-        <div class="name">Powerwall</div>
+      <div class="node" id="n-battery" style="left: 50%; top: 86%; --line-len: 124px;">
+        <div class="name">Batteria</div>
         <div class="value" data-k="battery">--</div>
-        <div class="meta" data-m="battery">--%</div>
+        <div class="line up"></div>
       </div>
 
-      <div class="node" id="n-car">
-        <div class="name">EV</div>
+      <div class="node" id="n-car" style="left: 16%; top: 66%; --line-len: 125px;">
+        <div class="name">Auto</div>
         <div class="value" data-k="car">--</div>
-        <div class="meta" data-m="car">Standby</div>
+        <div class="line up"></div>
       </div>
-
-      <div class="legend">
-        <div class="legend-item"><span class="dot solar"></span>Solar</div>
-        <div class="legend-item"><span class="dot grid"></span>Grid</div>
-        <div class="legend-item"><span class="dot battery"></span>Battery</div>
-        <div class="legend-item"><span class="dot car"></span>Car</div>
-      </div>
-
-      <div class="ground"></div>
     `;
 
     this.shadowRoot.innerHTML = "";
     this.shadowRoot.appendChild(root);
 
     this._elements = {
-      root,
-      header: root.querySelector("#header"),
-      title: root.querySelector("#title"),
-      weather: root.querySelector("#weather"),
-      updated: root.querySelector("#updated"),
-      themeSwitch: root.querySelector("#themeSwitch"),
-      sky: root.querySelector("#sky"),
-      moon: root.querySelector("#moon"),
-      modelViewer: root.querySelector("#modelViewer"),
-      cubeFallback: root.querySelector("#cubeFallback"),
-      wiresLayer: root.querySelector("#wiresLayer"),
-      flowsMainLayer: root.querySelector("#flowsMainLayer"),
-      flowsCoreLayer: root.querySelector("#flowsCoreLayer"),
+      image: root.querySelector("#homeImage"),
+      fallback: root.querySelector("#homeFallback"),
       nodes: {
-        solar: root.querySelector("#n-solar"),
         home: root.querySelector("#n-home"),
+        solar: root.querySelector("#n-solar"),
         grid: root.querySelector("#n-grid"),
         battery: root.querySelector("#n-battery"),
         car: root.querySelector("#n-car"),
       },
     };
 
-    this._bindThemeSwitch();
-    this._placeNodes();
-    this._drawIdleWires();
-  }
-
-  async _ensureModelViewerLoaded() {
-    if (window.customElements?.get("model-viewer")) {
-      this._modelViewerReady = true;
-      return true;
-    }
-
-    const existing = document.querySelector("script[data-tef-model-viewer='1']");
-    if (!existing) {
-      const script = document.createElement("script");
-      script.type = "module";
-      script.src = "https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js";
-      script.dataset.tefModelViewer = "1";
-      document.head.appendChild(script);
-    }
-
-    for (let i = 0; i < 30; i++) {
-      if (window.customElements?.get("model-viewer")) {
-        this._modelViewerReady = true;
-        return true;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-
-    return false;
-  }
-
-  _candidateModelUrls() {
-    const provided = this._config.model_url || "/hacsfiles/tesla-power-widget/home.glb";
-    const out = [provided];
-
-    if (provided.includes("home.glb")) out.push(provided.replace("home.glb", "casa.glb"));
-    if (provided.includes("casa.glb")) out.push(provided.replace("casa.glb", "home.glb"));
-
-    if (!provided.includes("/hacsfiles/tesla-power-widget/")) {
-      out.push("/hacsfiles/tesla-power-widget/home.glb");
-      out.push("/hacsfiles/tesla-power-widget/casa.glb");
-    }
-
-    return [...new Set(out)];
-  }
-
-  _applyModelViewParams() {
-    const mv = this._elements.modelViewer;
-    if (!mv) return;
-
-    const scale = this._toNumber(this._config.model_scale, 1.6);
-    const theta = this._toNumber(this._config.model_orbit_theta, 39);
-    const phi = this._toNumber(this._config.model_orbit_phi, 82);
-    const radius = this._toNumber(this._config.model_orbit_radius, 24.5);
-    const fov = this._toNumber(this._config.model_fov, 26);
-
-    mv.setAttribute("camera-orbit", `${theta}deg ${phi}deg ${radius}m`);
-    mv.setAttribute("field-of-view", `${fov}deg`);
-    mv.setAttribute("min-camera-orbit", `auto auto ${Math.max(0.6, radius - 0.8).toFixed(2)}m`);
-    mv.setAttribute("max-camera-orbit", `auto auto ${(radius + 1.4).toFixed(2)}m`);
-    mv.style.transform = `scale(${Math.max(0.2, scale)})`;
-  }
-
-  _tryModelUrl(url, token) {
-    return new Promise((resolve) => {
-      const mv = this._elements.modelViewer;
-      if (!mv) return resolve(false);
-
-      const done = (ok) => {
-        if (token !== this._modelLoadToken) return;
-        cleanup();
-        resolve(ok);
-      };
-
-      const onLoad = () => done(true);
-      const onError = () => done(false);
-      const timer = setTimeout(() => done(false), 6000);
-
-      const cleanup = () => {
-        clearTimeout(timer);
-        mv.removeEventListener("load", onLoad);
-        mv.removeEventListener("error", onError);
-      };
-
-      mv.addEventListener("load", onLoad, { once: true });
-      mv.addEventListener("error", onError, { once: true });
-      mv.setAttribute("src", url);
+    this._elements.image.addEventListener("error", () => {
+      this._elements.image.style.display = "none";
+      this._elements.fallback.style.display = "flex";
     });
-  }
 
-  async _setupModel() {
-    if (!this._elements.modelViewer || !this._elements.cubeFallback) return;
-
-    this._modelLoadToken += 1;
-    const token = this._modelLoadToken;
-
-    // Browsers block GLB fetch in file:// context. Keep fallback cube visible.
-    if (window.location?.protocol === "file:") {
-      this._elements.modelViewer.style.display = "none";
-      this._elements.cubeFallback.style.display = "block";
-      return;
-    }
-
-    const ok = await this._ensureModelViewerLoaded();
-    if (!ok) {
-      this._elements.modelViewer.style.display = "none";
-      this._elements.cubeFallback.style.display = "block";
-      return;
-    }
-
-    const candidates = this._candidateModelUrls();
-    this._elements.modelViewer.style.display = "none";
-    this._applyModelViewParams();
-    this._elements.cubeFallback.style.display = "block";
-
-    for (const url of candidates) {
-      const loaded = await this._tryModelUrl(url, token);
-      if (token !== this._modelLoadToken) return;
-      if (loaded) {
-        this._elements.modelViewer.style.display = "block";
-        this._elements.cubeFallback.style.display = "none";
-        return;
-      }
-    }
-
-    this._elements.modelViewer.style.display = "none";
-    this._elements.cubeFallback.style.display = "block";
-  }
-
-  _setupThemeControls() {
-    if (!this._elements.themeSwitch) return;
-    const show = !!this._config.show_theme_toggle;
-    this._elements.themeSwitch.classList.toggle("hidden", !show);
-    this._elements.header.classList.toggle("hidden", this._config.show_header === false);
-
-    this._elements.title.textContent = this._config.title || "Energy";
-  }
-
-  _bindThemeSwitch() {
-    const sw = this._elements.themeSwitch;
-    if (!sw) return;
-
-    sw.querySelectorAll("button").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        this._themeMode = btn.dataset.theme || "auto";
-        sw.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
-        this._applyTheme();
-      });
+    this._elements.image.addEventListener("load", () => {
+      this._elements.image.style.display = "block";
+      this._elements.fallback.style.display = "none";
     });
-  }
-
-  _placeNodes() {
-    const layout = {
-      solar: { x: 52, y: 18 },
-      home: { x: 73, y: 38 },
-      grid: { x: 73, y: 80 },
-      battery: { x: 50, y: 80 },
-      car: { x: 28, y: 38 },
-    };
-
-    Object.entries(layout).forEach(([key, pos]) => {
-      const n = this._elements.nodes[key];
-      if (!n) return;
-      n.style.left = `${pos.x}%`;
-      n.style.top = `${pos.y}%`;
-    });
-  }
-
-  _wireConfig() {
-    return {
-      "solar->home": { from: [520, 132], to: [670, 236], type: "solar" },
-      "solar->battery": { from: [500, 132], to: [500, 350], type: "solar" },
-      "solar->grid": { from: [540, 132], to: [670, 350], type: "solar" },
-      "solar->car": { from: [460, 132], to: [330, 236], type: "solar" },
-      "battery->home": { from: [500, 350], to: [670, 236], type: "battery" },
-      "grid->home": { from: [670, 350], to: [670, 236], type: "grid" },
-      "grid->battery": { from: [670, 350], to: [500, 350], type: "grid" },
-      "battery->grid": { from: [500, 350], to: [670, 350], type: "battery" },
-      "grid->car": { from: [670, 350], to: [330, 236], type: "grid" },
-      "battery->car": { from: [500, 350], to: [330, 236], type: "battery" },
-      "home->car": { from: [670, 236], to: [330, 236], type: "car" },
-    };
-  }
-
-  _orthogonalPath(from, to) {
-    const [x1, y1] = from;
-    const [x2, y2] = to;
-
-    if (x1 === x2 || y1 === y2) {
-      return `M ${x1} ${y1} L ${x2} ${y2}`;
-    }
-
-    const mx = x1;
-    const my = y2;
-    return `M ${x1} ${y1} L ${mx} ${my} L ${x2} ${y2}`;
-  }
-
-  _drawIdleWires() {
-    this._elements.wiresLayer.innerHTML = "";
-    const map = this._wireConfig();
-
-    Object.values(map).forEach((cfg) => {
-      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      p.setAttribute("class", "wire-idle");
-      p.setAttribute("d", this._orthogonalPath(cfg.from, cfg.to));
-      this._elements.wiresLayer.appendChild(p);
-    });
-  }
-
-  _applyTheme() {
-    const mode = this._themeMode || this._config.theme_mode || "auto";
-    const isDayAuto = this._deriveIsDay();
-    const isDay = mode === "day" ? true : mode === "night" ? false : isDayAuto;
-
-    const cloud = this._weatherState.cloud;
-    const heavyCloud = cloud !== null && cloud > 70;
-
-    const rootStyle = this._elements.root.style;
-
-    if (isDay) {
-      rootStyle.setProperty("--tef-bg-top", heavyCloud ? "#2c394a" : "#263445");
-      rootStyle.setProperty("--tef-bg-mid", heavyCloud ? "#1a2534" : "#151f2e");
-      rootStyle.setProperty("--tef-bg-bot", "#0a1018");
-      this._elements.sky.style.opacity = heavyCloud ? "0.62" : "0.46";
-      this._elements.moon.style.opacity = "0";
-    } else {
-      rootStyle.setProperty("--tef-bg-top", "#1d2a38");
-      rootStyle.setProperty("--tef-bg-mid", "#121b29");
-      rootStyle.setProperty("--tef-bg-bot", "#090f17");
-      this._elements.sky.style.opacity = heavyCloud ? "0.56" : "0.38";
-      this._elements.moon.style.opacity = "0.78";
-    }
-  }
-
-  _deriveIsDay() {
-    if (this._weatherState.isDay !== null) return this._weatherState.isDay;
-
-    if (this._hass) {
-      const sun = this._hass.states?.[this._config.sun_entity || "sun.sun"];
-      if (sun) {
-        return sun.state === "above_horizon";
-      }
-    }
-
-    const hour = new Date().getHours();
-    return hour >= 7 && hour < 19;
   }
 
   _toNumber(v, fallback = null) {
@@ -807,87 +246,16 @@ class TeslaEnergyFlowCard extends HTMLElement {
   _readData() {
     if (this._demoData) return { ...this._demoData };
 
-    const entities = this._config.entities || {};
-
-    const solar = this._powerToKw(this._hass?.states?.[entities.solar_power]);
-    const home = this._powerToKw(this._hass?.states?.[entities.home_power]);
-    const grid = this._powerToKw(this._hass?.states?.[entities.grid_power]);
-    const batteryPower = this._powerToKw(this._hass?.states?.[entities.battery_power]);
-    const carPower = this._powerToKw(this._hass?.states?.[entities.car_power]);
-
-    const batterySoc = this._stateNum(entities.battery_soc);
-    const carSoc = this._stateNum(entities.car_soc);
-
-    const weatherEntity = entities.weather || this._config.weather_entity;
-    const weatherState = this._hass?.states?.[weatherEntity];
-    if (weatherState) {
-      const state = String(weatherState.state || "").toLowerCase();
-      if (state.includes("night")) this._weatherState.isDay = false;
-      if (state.includes("sunny") || state.includes("clear") || state.includes("cloud") || state.includes("rain")) this._weatherState.isDay = !state.includes("night");
-      this._weatherState.cloud = this._toNumber(weatherState.attributes?.cloud_coverage, null);
-      const temp = this._toNumber(weatherState.attributes?.temperature, null);
-      this._elements.weather.textContent = `${weatherEntity} ${temp !== null ? `• ${temp.toFixed(1)}°` : ""}`;
-    } else {
-      this._elements.weather.textContent = "No weather entity";
-    }
+    const e = this._config.entities || {};
 
     return {
-      solar: Math.max(0, solar ?? 0),
-      home: Math.max(0, home ?? 0),
-      grid,
-      batteryPower,
-      batterySoc,
-      carPower,
-      carSoc,
-    };
-  }
-
-  _computeFlows(input) {
-    const solar = Math.max(0, this._toNumber(input.solar, 0));
-    const home = Math.max(0, this._toNumber(input.home, 0));
-    const batteryPower = this._toNumber(input.batteryPower, null);
-    const grid = this._toNumber(input.grid, null);
-    const carPower = this._toNumber(input.carPower, null);
-
-    const carLoad = carPower !== null ? Math.max(0, carPower) : 0;
-    const demand = home + carLoad;
-
-    const batteryCharge = batteryPower !== null ? Math.max(0, batteryPower) : 0;
-    const batteryDischarge = batteryPower !== null ? Math.max(0, -batteryPower) : 0;
-
-    const solarToDemand = Math.min(solar, demand);
-    let demandLeft = demand - solarToDemand;
-
-    const batteryToDemand = Math.min(demandLeft, batteryDischarge);
-    demandLeft -= batteryToDemand;
-
-    const gridToDemand = Math.max(0, demandLeft);
-
-    let solarExcess = Math.max(0, solar - solarToDemand);
-    const solarToBattery = Math.min(solarExcess, batteryCharge);
-    solarExcess -= solarToBattery;
-    const solarToGrid = Math.max(0, solarExcess);
-
-    const gridToBattery = Math.max(0, batteryCharge - solarToBattery);
-    const batteryToGrid = Math.max(0, batteryDischarge - batteryToDemand);
-
-    const s = demand > 0 ? solarToDemand / demand : 0;
-    const b = demand > 0 ? batteryToDemand / demand : 0;
-    const g = demand > 0 ? gridToDemand / demand : 0;
-
-    return {
-      "solar->home": home * s,
-      "solar->car": carLoad * s,
-      "solar->battery": solarToBattery,
-      "solar->grid": solarToGrid,
-      "battery->home": home * b,
-      "battery->car": carLoad * b,
-      "grid->home": home * g,
-      "grid->car": carLoad * g,
-      "grid->battery": gridToBattery,
-      "battery->grid": batteryToGrid,
-      "home->car": 0,
-      derivedGrid: grid !== null ? grid : (gridToDemand + gridToBattery - solarToGrid - batteryToGrid),
+      solar: this._powerToKw(this._hass?.states?.[e.solar_power]),
+      home: this._powerToKw(this._hass?.states?.[e.home_power]),
+      grid: this._powerToKw(this._hass?.states?.[e.grid_power]),
+      batteryPower: this._powerToKw(this._hass?.states?.[e.battery_power]),
+      batterySoc: this._stateNum(e.battery_soc),
+      carPower: this._powerToKw(this._hass?.states?.[e.car_power]),
+      carSoc: this._stateNum(e.car_soc),
     };
   }
 
@@ -896,97 +264,43 @@ class TeslaEnergyFlowCard extends HTMLElement {
     return `${Math.abs(v).toFixed(1)} kW`;
   }
 
-  _showNode(key, visible) {
-    this._elements.nodes[key].classList.toggle("hidden", !visible);
-  }
+  _setNode(key, powerKw, visible) {
+    const node = this._elements.nodes[key];
+    if (!node) return;
 
-  _setNode(key, power, meta) {
-    this.shadowRoot.querySelector(`[data-k='${key}']`).textContent = this._formatPower(power);
-    if (meta) this.shadowRoot.querySelector(`[data-m='${key}']`).textContent = meta;
-  }
+    node.classList.toggle("hidden", !visible);
 
-  _drawFlows(flows) {
-    const colors = {
-      solar: "var(--tef-solar)",
-      grid: "var(--tef-grid)",
-      battery: "var(--tef-battery)",
-      car: "var(--tef-car)",
-    };
+    const line = node.querySelector(".line");
+    if (line) line.classList.toggle("hidden", !visible);
 
-    this._elements.flowsMainLayer.innerHTML = "";
-    this._elements.flowsCoreLayer.innerHTML = "";
-
-    const map = this._wireConfig();
-    Object.entries(flows).forEach(([id, kw]) => {
-      const cfg = map[id];
-      if (!cfg || !Number.isFinite(kw) || kw <= 0.02) return;
-
-      const intensity = Math.max(0.2, Math.min(1, kw / 7.5));
-      const d = this._orthogonalPath(cfg.from, cfg.to);
-
-      const main = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      main.setAttribute("class", "flow-main");
-      main.setAttribute("d", d);
-      main.style.stroke = colors[cfg.type] || "#fff";
-      main.style.opacity = String(0.3 + intensity * 0.6);
-      main.style.strokeWidth = String(2.8 + intensity * 2.2);
-      main.style.animationDuration = `${1.7 - intensity * 1.0}s`;
-      this._elements.flowsMainLayer.appendChild(main);
-
-      const core = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      core.setAttribute("class", "flow-core");
-      core.setAttribute("d", d);
-      core.style.opacity = String(0.18 + intensity * 0.62);
-      core.style.animationDuration = `${0.9 - intensity * 0.45}s`;
-      this._elements.flowsCoreLayer.appendChild(core);
-    });
+    const valueEl = this.shadowRoot.querySelector(`[data-k='${key}']`);
+    if (valueEl) valueEl.textContent = this._formatPower(powerKw);
   }
 
   _renderFromState() {
     if (!this._initialized) return;
 
     const data = this._readData();
-    const flows = this._computeFlows(data);
 
     const solar = Math.max(0, this._toNumber(data.solar, 0));
     const home = Math.max(0, this._toNumber(data.home, 0));
-    const grid = this._toNumber(data.grid, flows.derivedGrid);
+    const grid = this._toNumber(data.grid, null);
     const batteryPower = this._toNumber(data.batteryPower, null);
     const batterySoc = this._toNumber(data.batterySoc, null);
     const carPower = this._toNumber(data.carPower, null);
     const carSoc = this._toNumber(data.carSoc, null);
 
-    const localDemand = home + (carPower !== null ? Math.max(0, carPower) : 0);
-    const localCoverage = localDemand > 0 ? Math.round((Math.min(localDemand, solar) / localDemand) * 100) : 0;
-
-    this._showNode("solar", true);
-    this._setNode("solar", solar, `${localCoverage}% local`);
-
-    this._showNode("home", true);
-    this._setNode("home", home, "Load");
+    this._setNode("solar", solar, true);
+    this._setNode("home", home, true);
 
     const showGrid = grid !== null;
-    this._showNode("grid", showGrid);
-    if (showGrid) this._setNode("grid", grid, grid >= 0 ? "Import" : "Export");
+    this._setNode("grid", grid || 0, showGrid);
 
     const showBattery = batteryPower !== null || batterySoc !== null;
-    this._showNode("battery", showBattery);
-    if (showBattery) {
-      const meta = batterySoc !== null ? `${Math.max(0, Math.min(100, Math.round(batterySoc)))}%` : (batteryPower >= 0 ? "Charging" : "Discharging");
-      this._setNode("battery", batteryPower || 0, meta);
-    }
+    this._setNode("battery", batteryPower || 0, showBattery);
 
     const showCar = carPower !== null || carSoc !== null;
-    this._showNode("car", showCar);
-    if (showCar) {
-      const meta = carSoc !== null ? `${Math.max(0, Math.min(100, Math.round(carSoc)))}%` : ((carPower || 0) > 0 ? "Charging" : "Standby");
-      this._setNode("car", carPower || 0, meta);
-    }
-
-    this._elements.updated.textContent = new Date().toLocaleTimeString("it-IT");
-
-    this._applyTheme();
-    this._drawFlows(flows);
+    this._setNode("car", carPower || 0, showCar);
   }
 }
 
@@ -996,5 +310,5 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "tesla-energy-flow-card",
   name: "Tesla Energy Flow Card",
-  description: "Tesla-like animated energy flow card with minimal dependencies",
+  description: "Minimal Tesla-like static layout with centered home image",
 });
