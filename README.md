@@ -17,6 +17,14 @@ Custom Lovelace card (senza framework) con layout minimale stile Tesla:
 5. Verifica risorsa:
    - `/hacsfiles/tesla-power-widget/tesla-energy-flow-card.js` (tipo `module`)
 
+## Aggiornamenti automatici HACS
+
+Il repository include il workflow GitHub Actions:
+
+`/.github/workflows/hacs-release.yml`
+
+A ogni push su `main` crea automaticamente un nuovo tag/release, così HACS può segnalare un aggiornamento disponibile senza creazione manuale della release.
+
 ## Asset richiesto
 
 Aggiungi anche `home.png` nel repository root (stesso livello di `tesla-energy-flow-card.js`), così è disponibile su:
