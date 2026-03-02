@@ -1,0 +1,111 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  min-height: 100%;
+  background: #0f0f0f;
+  color: #eaeaea;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.demo-layout {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.demo-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.demo-toolbar__button {
+  border: 1px solid #303030;
+  background: #161616;
+  color: #eee;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 120ms ease-out, border-color 120ms ease-out, transform 80ms ease-out;
+}
+
+.demo-toolbar__button:hover {
+  background: #232323;
+  border-color: #3c3c3c;
+}
+
+.demo-toolbar__button:active {
+  transform: translateY(1px);
+  background: #1b1b1b;
+}
+
+tesla-energy-flow-card {
+  display: block;
+  width: 100%;
+  min-height: 560px;
+}
+
+/* Tesla Energy Card – class hooks for easy customization */
+
+/* Tesla Energy Card – styling hooks (Shadow DOM safe) */
+
+tesla-energy-flow-card {
+  /* CSS variables penetrate Shadow DOM */
+  --font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --bg: #0f0f0f;
+  --text-main: #f2f2f2;
+  --text-dim: #b9b9b9;
+  --line: #6f6f6f;
+
+  /* Typography + sizing */
+  --title-size: 10px;
+  --title-weight: 100;
+  --value-size: 20px;
+  --value-weight: 100;
+
+  /* Lines + image */
+  --image-max-width: 820px;
+  --image-max-height: 420px;
+}
+
+/* ::part() styles Shadow DOM parts */
+tesla-energy-flow-card::part(title) {
+}
+
+tesla-energy-flow-card::part(value) {
+}
+
+tesla-energy-flow-card::part(line) {
+}
+
+tesla-energy-flow-card::part(image) {
+}
+
+/* Optional per-node targeting examples */
+tesla-energy-flow-card::part(title-home) {
+  font-size: 10px;
+}
+
+tesla-energy-flow-card::part(value-solar) {
+}
+
+@media (max-width: 768px) {
+  .demo-layout {
+    padding: 10px;
+  }
+
+  .demo-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .demo-toolbar__button {
+    font-size: 11px;
+    padding: 5px 9px;
+  }
+}
+

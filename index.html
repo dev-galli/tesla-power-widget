@@ -4,55 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tesla Energy Card Demo</title>
-  <style>
-    html, body {
-      margin: 0;
-      width: 100%;
-      min-height: 100%;
-      background: #0F0F0F;
-      color: #eaeaea;
-      font-family: "Inter", sans-serif;
-    }
-
-    .wrap {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 12px;
-    }
-
-    .bar {
-      display: flex;
-      gap: 8px;
-      padding: 8px 0;
-    }
-
-    .bar button {
-      border: 1px solid #303030;
-      background: #161616;
-      color: #eee;
-      border-radius: 8px;
-      font: inherit;
-      font-size: 12px;
-      padding: 6px 10px;
-      cursor: pointer;
-    }
-
-    tesla-energy-flow-card {
-      display: block;
-      width: 100%;
-      min-height: 560px;
-    }
-  </style>
+  <link rel="stylesheet" href="./demo-page.css?v=dev-1" />
 </head>
 <body>
-  <div class="wrap">
-    <div class="bar">
-      <button id="btn-no-car">Toggle Car</button>
+  <div class="demo-layout">
+    <div class="demo-toolbar">
+      <button id="btn-no-car" class="demo-toolbar__button">Toggle Car</button>
     </div>
     <tesla-energy-flow-card id="card"></tesla-energy-flow-card>
   </div>
 
-  <script src="./tesla-energy-flow-card.js"></script>
+  <script src="./tesla-energy-flow-card.js?v=dev-1"></script>
   <script>
     const card = document.getElementById("card");
 

@@ -1,5 +1,6 @@
 class TeslaEnergyFlowCard extends HTMLElement {
-  static version = "0.2.0";
+  static version = "0.2.1";
+  static _assetBaseUrl = null;
 
   constructor() {
     super();
@@ -11,11 +12,52 @@ class TeslaEnergyFlowCard extends HTMLElement {
     this._elements = {};
   }
 
+  static _guessAssetBaseUrl() {
+    if (TeslaEnergyFlowCard._assetBaseUrl) return TeslaEnergyFlowCard._assetBaseUrl;
+
+    // Try to derive base path from the script URL used by Home Assistant resources.
+    const scripts = Array.from(document.querySelectorAll("script[src]"));
+    const match = scripts.find((s) => {
+      const src = String(s.getAttribute("src") || "");
+      return src.endsWith("/tesla-energy-flow-card.js") || src.includes("tesla-energy-flow-card.js");
+    });
+
+    if (match) {
+      try {
+        const u = new URL(match.src, window.location.href);
+        u.pathname = u.pathname.replace(/\/[^/]*$/, "");
+        u.search = "";
+        u.hash = "";
+        TeslaEnergyFlowCard._assetBaseUrl = u.toString().replace(/\/$/, "");
+        return TeslaEnergyFlowCard._assetBaseUrl;
+      } catch {
+        // ignore and fall back below
+      }
+    }
+
+    // Fallback to the original default path (common HACS layout).
+    TeslaEnergyFlowCard._assetBaseUrl = `${window.location.origin}/hacsfiles/tesla-power-widget`;
+    return TeslaEnergyFlowCard._assetBaseUrl;
+  }
+
+  static _assetUrl(fileName) {
+    const base = TeslaEnergyFlowCard._guessAssetBaseUrl();
+    return `${base}/${String(fileName).replace(/^\//, "")}`;
+  }
+
   setConfig(config) {
+    const defaultImageUrl = TeslaEnergyFlowCard._assetUrl("home.png");
     this._config = {
       title: "Energy",
       entities: {},
-      image_url: "/hacsfiles/tesla-power-widget/home.png",
+      image_url: defaultImageUrl,
+      labels: {
+        home: "Casa",
+        solar: "Pannelli Solari",
+        grid: "Rete",
+        battery: "Batteria",
+        car: "Auto",
+      },
       ...config,
     };
 
@@ -25,6 +67,7 @@ class TeslaEnergyFlowCard extends HTMLElement {
     }
 
     this._elements.image.src = this._config.image_url;
+    this._applyLabels();
     this._renderFromState();
   }
 
@@ -42,35 +85,45 @@ class TeslaEnergyFlowCard extends HTMLElement {
     this._renderFromState();
   }
 
+  _applyLabels() {
+    const labels = this._config.labels || {};
+    const titleEls = this.shadowRoot?.querySelectorAll("[data-title]");
+    if (!titleEls) return;
+    titleEls.forEach((el) => {
+      const k = el.getAttribute("data-title");
+      if (!k) return;
+      const next = labels[k];
+      if (typeof next === "string") el.textContent = next;
+    });
+  }
+
   _renderBase() {
     const root = document.createElement("div");
-    root.className = "card-root";
+    root.className = "tec-card";
+    root.setAttribute("part", "card");
 
     root.innerHTML = `
       <style>
+        @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
         :host {
-          --bg: #0F0F0F;
-          --text-main: #f2f2f2;
-          --text-dim: #b9b9b9;
-          --line: #6f6f6f;
-          --font: "Inter", sans-serif;
           display: block;
           min-height: 560px;
         }
 
         * { box-sizing: border-box; }
 
-        .card-root {
+        .tec-card {
           position: relative;
           width: 100%;
           min-height: 560px;
-          background: var(--bg);
-          color: var(--text-main);
-          font-family: var(--font);
+          background: var(--bg, #0F0F0F);
+          color: var(--text-main, #f2f2f2);
+          font-family: var(--font, "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif);
           overflow: hidden;
         }
 
-        .center-wrap {
+        .tec-card__center {
           position: absolute;
           left: 50%;
           top: 56%;
@@ -83,15 +136,15 @@ class TeslaEnergyFlowCard extends HTMLElement {
           pointer-events: none;
         }
 
-        .home-image {
+        .tec-card__image {
           width: 100%;
-          max-width: 820px;
-          max-height: 420px;
+          max-width: var(--image-max-width, 820px);
+          max-height: var(--image-max-height, 420px);
           object-fit: contain;
           display: block;
         }
 
-        .home-fallback {
+        .tec-card__image-fallback {
           width: min(100%, 820px);
           height: 320px;
           border: 1px solid #2b2b2b;
@@ -104,7 +157,7 @@ class TeslaEnergyFlowCard extends HTMLElement {
           letter-spacing: .02em;
         }
 
-        .node {
+        .tec-card__node {
           position: absolute;
           transform: translate(-50%, -50%);
           min-width: 150px;
@@ -112,88 +165,88 @@ class TeslaEnergyFlowCard extends HTMLElement {
           pointer-events: none;
         }
 
-        .node.hidden { opacity: 0; }
+        .tec-card__node.hidden { opacity: 0; }
 
-        .name {
-          font-size: 18px;
+        .tec-card__title {
+          font-size: var(--title-size, 18px);
           line-height: 1.2;
-          font-weight: 400;
-          color: var(--text-dim);
+          font-weight: var(--title-weight, 400);
+          color: var(--text-dim, #b9b9b9);
           margin-bottom: 5px;
         }
 
-        .value {
-          font-size: 52px;
+        .tec-card__value {
+          font-size: var(--value-size, 52px);
           line-height: 1;
-          font-weight: 700;
+          font-weight: var(--value-weight, 700);
           letter-spacing: -0.02em;
-          color: var(--text-main);
+          color: var(--text-main, #f2f2f2);
         }
 
-        .line {
+        .tec-card__line {
           position: absolute;
           left: 50%;
-          width: 1px;
-          background: var(--line);
+          width: var(--line-width, 1px);
+          background: var(--line, #6f6f6f);
           transform: translateX(-50%);
           opacity: 0.95;
         }
 
-        .line.down {
+        .tec-card__line--down {
           top: calc(100% + 10px);
           height: var(--line-len, 180px);
         }
 
-        .line.up {
+        .tec-card__line--up {
           bottom: calc(100% + 10px);
           height: var(--line-len, 180px);
         }
 
-        .line.hidden { display: none; }
+        .tec-card__line.hidden { display: none; }
 
         @media (max-width: 960px) {
           :host { min-height: 620px; }
-          .card-root { min-height: 620px; }
-          .center-wrap { top: 58%; width: min(92%, 820px); }
-          .node { min-width: 100px; }
-          .name { font-size: 14px; }
-          .value { font-size: 36px; }
+          .tec-card { min-height: 620px; }
+          .tec-card__center { top: 58%; width: min(92%, 820px); }
+          .tec-card__node { min-width: 100px; }
+          .tec-card__title { font-size: var(--title-size-mobile, var(--title-size, 14px)); }
+          .tec-card__value { font-size: var(--value-size-mobile, var(--value-size, 36px)); }
         }
       </style>
 
-      <div class="center-wrap" aria-hidden="true">
-        <img class="home-image" id="homeImage" alt="Home" />
-        <div class="home-fallback" id="homeFallback">home.png non trovato</div>
+      <div class="tec-card__center" part="center" aria-hidden="true">
+        <img class="tec-card__image" part="image" id="homeImage" alt="Home" />
+        <div class="tec-card__image-fallback" part="image-fallback" id="homeFallback">home.png non trovato</div>
       </div>
 
-      <div class="node" id="n-home" style="left: 26%; top: 22%; --line-len: 238px;">
-        <div class="name">Casa</div>
-        <div class="value" data-k="home">--</div>
-        <div class="line down"></div>
+      <div class="tec-card__node" part="node node-home" id="n-home" style="left: 26%; top: 22%; --line-len: 238px;">
+        <div class="tec-card__title" part="title title-home" data-title="home">Casa</div>
+        <div class="tec-card__value" part="value value-home" data-k="home">--</div>
+        <div class="tec-card__line tec-card__line--down" part="line line-home line-down"></div>
       </div>
 
-      <div class="node" id="n-solar" style="left: 66%; top: 20%; --line-len: 206px;">
-        <div class="name">Pannelli Solari</div>
-        <div class="value" data-k="solar">--</div>
-        <div class="line down"></div>
+      <div class="tec-card__node" part="node node-solar" id="n-solar" style="left: 66%; top: 20%; --line-len: 206px;">
+        <div class="tec-card__title" part="title title-solar" data-title="solar">Pannelli Solari</div>
+        <div class="tec-card__value" part="value value-solar" data-k="solar">--</div>
+        <div class="tec-card__line tec-card__line--down" part="line line-solar line-down"></div>
       </div>
 
-      <div class="node" id="n-grid" style="left: 84%; top: 66%; --line-len: 125px;">
-        <div class="name">Rete</div>
-        <div class="value" data-k="grid">--</div>
-        <div class="line up"></div>
+      <div class="tec-card__node" part="node node-grid" id="n-grid" style="left: 84%; top: 66%; --line-len: 125px;">
+        <div class="tec-card__title" part="title title-grid" data-title="grid">Rete</div>
+        <div class="tec-card__value" part="value value-grid" data-k="grid">--</div>
+        <div class="tec-card__line tec-card__line--up" part="line line-grid line-up"></div>
       </div>
 
-      <div class="node" id="n-battery" style="left: 50%; top: 86%; --line-len: 124px;">
-        <div class="name">Batteria</div>
-        <div class="value" data-k="battery">--</div>
-        <div class="line up"></div>
+      <div class="tec-card__node" part="node node-battery" id="n-battery" style="left: 50%; top: 86%; --line-len: 124px;">
+        <div class="tec-card__title" part="title title-battery" data-title="battery">Batteria</div>
+        <div class="tec-card__value" part="value value-battery" data-k="battery">--</div>
+        <div class="tec-card__line tec-card__line--up" part="line line-battery line-up"></div>
       </div>
 
-      <div class="node" id="n-car" style="left: 16%; top: 66%; --line-len: 125px;">
-        <div class="name">Auto</div>
-        <div class="value" data-k="car">--</div>
-        <div class="line up"></div>
+      <div class="tec-card__node" part="node node-car" id="n-car" style="left: 16%; top: 66%; --line-len: 125px;">
+        <div class="tec-card__title" part="title title-car" data-title="car">Auto</div>
+        <div class="tec-card__value" part="value value-car" data-k="car">--</div>
+        <div class="tec-card__line tec-card__line--up" part="line line-car line-up"></div>
       </div>
     `;
 
@@ -270,7 +323,7 @@ class TeslaEnergyFlowCard extends HTMLElement {
 
     node.classList.toggle("hidden", !visible);
 
-    const line = node.querySelector(".line");
+    const line = node.querySelector(".tec-card__line");
     if (line) line.classList.toggle("hidden", !visible);
 
     const valueEl = this.shadowRoot.querySelector(`[data-k='${key}']`);
