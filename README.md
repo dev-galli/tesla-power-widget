@@ -7,6 +7,7 @@ Custom Lovelace card (senza framework) con layout minimale stile Tesla:
 - immagine centrale `home.png`
 - valori con titolo + potenza e linea retta grigia da 1px verso il centro
 - nessuna legenda, nessun selettore tema, nessun tracciato SVG
+- versione card mostrata in piccolo in basso a destra (allineata al tag release)
 
 ## Installazione Home Assistant (HACS)
 

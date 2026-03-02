@@ -29,24 +29,27 @@ jobs:
             exit 1
           fi
 
-          MAJOR_MINOR=$(echo "$BASE_VERSION" | awk -F. '{print $1"."$2}')
-          PATCH="${GITHUB_RUN_NUMBER}"
-          if [ "${GITHUB_RUN_ATTEMPT}" -gt 1 ]; then
-            PATCH="${GITHUB_RUN_NUMBER}${GITHUB_RUN_ATTEMPT}"
-          fi
-          TAG="v${MAJOR_MINOR}.${PATCH}"
+          TAG="v${BASE_VERSION}"
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "name=Release $TAG" >> "$GITHUB_OUTPUT"
 
       - name: Create Git tag
+        id: create_tag
         shell: bash
         run: |
           set -euo pipefail
+          if git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "Tag already exists: ${{ steps.version.outputs.tag }}. Skipping release."
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           git tag "${{ steps.version.outputs.tag }}"
           git push origin "${{ steps.version.outputs.tag }}"
+          echo "created=true" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
+        if: steps.create_tag.outputs.created == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}

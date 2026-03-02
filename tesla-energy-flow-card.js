@@ -1,5 +1,5 @@
 class TeslaEnergyFlowCard extends HTMLElement {
-  static version = "0.2.2";
+  static version = "0.2.3";
   static _assetBaseUrl = null;
 
   constructor() {
@@ -204,6 +204,16 @@ class TeslaEnergyFlowCard extends HTMLElement {
 
         .tec-card__line.hidden { display: none; }
 
+        .tec-card__version {
+          position: absolute;
+          right: 10px;
+          bottom: 8px;
+          font-size: 10px;
+          line-height: 1;
+          color: #7f7f7f;
+          letter-spacing: .02em;
+        }
+
         @media (max-width: 960px) {
           :host { min-height: 620px; }
           .tec-card { min-height: 620px; }
@@ -248,6 +258,8 @@ class TeslaEnergyFlowCard extends HTMLElement {
         <div class="tec-card__value" part="value value-car" data-k="car">--</div>
         <div class="tec-card__line tec-card__line--up" part="line line-car line-up"></div>
       </div>
+
+      <div class="tec-card__version" id="cardVersion">v${TeslaEnergyFlowCard.version}</div>
     `;
 
     this.shadowRoot.innerHTML = "";
@@ -256,6 +268,7 @@ class TeslaEnergyFlowCard extends HTMLElement {
     this._elements = {
       image: root.querySelector("#homeImage"),
       fallback: root.querySelector("#homeFallback"),
+      version: root.querySelector("#cardVersion"),
       nodes: {
         home: root.querySelector("#n-home"),
         solar: root.querySelector("#n-solar"),
@@ -274,6 +287,10 @@ class TeslaEnergyFlowCard extends HTMLElement {
       this._elements.image.style.display = "block";
       this._elements.fallback.style.display = "none";
     });
+
+    if (this._elements.version) {
+      this._elements.version.textContent = `v${TeslaEnergyFlowCard.version}`;
+    }
   }
 
   _toNumber(v, fallback = null) {
