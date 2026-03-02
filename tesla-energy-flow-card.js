@@ -1,5 +1,5 @@
 class TeslaEnergyFlowCard extends HTMLElement {
-  static version = "0.2.1";
+  static version = "0.2.2";
   static _assetBaseUrl = null;
 
   constructor() {
