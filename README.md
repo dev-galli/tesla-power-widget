@@ -2,12 +2,13 @@
 
 Custom Lovelace card (senza framework) con layout minimale stile Tesla:
 
-- sfondo card `#0F0F0F`
+- sfondo trasparente (si integra col tema HA)
 - font `Inter`
 - immagine centrale `home.png`
 - valori con titolo + potenza e linea retta grigia da 1px verso il centro
 - nessuna legenda, nessun selettore tema, nessun tracciato SVG
 - versione card mostrata in piccolo in basso a destra (allineata al tag release)
+- tema chiaro/scuro automatico: cambia solo il colore di testo/linee
 
 ## Installazione Home Assistant (HACS)
 
@@ -31,6 +32,12 @@ A ogni push su `main` crea automaticamente un nuovo tag/release, così HACS può
 Aggiungi anche `home.png` nel repository root (stesso livello di `tesla-energy-flow-card.js`), così è disponibile su:
 
 `/hacsfiles/tesla-power-widget/home.png`
+
+Fallback automatici immagine:
+
+1. `image_url` da configurazione card
+2. `/hacsfiles/tesla-power-widget/home.png`
+3. `/local/home.png`
 
 ## Configurazione Lovelace
 

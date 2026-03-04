@@ -1,5 +1,5 @@
 class TeslaEnergyFlowCard extends HTMLElement {
-  static version = "0.2.3";
+  static version = "0.2.4";
   static _assetBaseUrl = null;
 
   constructor() {
@@ -66,7 +66,7 @@ class TeslaEnergyFlowCard extends HTMLElement {
       this._initialized = true;
     }
 
-    this._elements.image.src = this._config.image_url;
+    this._setImageSource(this._config.image_url);
     this._applyLabels();
     this._renderFromState();
   }
@@ -104,8 +104,6 @@ class TeslaEnergyFlowCard extends HTMLElement {
 
     root.innerHTML = `
       <style>
-        @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-
         :host {
           display: block;
           min-height: 560px;
@@ -113,13 +111,22 @@ class TeslaEnergyFlowCard extends HTMLElement {
 
         * { box-sizing: border-box; }
 
+        ha-card {
+          margin: 0;
+          padding: 0;
+          background: transparent !important;
+          box-shadow: none !important;
+          border: 0 !important;
+          overflow: hidden;
+        }
+
         .tec-card {
           position: relative;
           width: 100%;
           min-height: 560px;
-          background: var(--bg, #0F0F0F);
+          background: transparent;
           color: var(--text-main, #f2f2f2);
-          font-family: var(--font, "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif);
+          font-family: var(--font, "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
           overflow: hidden;
         }
 
@@ -210,8 +217,15 @@ class TeslaEnergyFlowCard extends HTMLElement {
           bottom: 8px;
           font-size: 10px;
           line-height: 1;
-          color: #7f7f7f;
+          color: var(--version-color, #7f7f7f);
           letter-spacing: .02em;
+        }
+
+        :host {
+          --text-main: var(--tef-text-main, var(--primary-text-color, #f2f2f2));
+          --text-dim: var(--tef-text-dim, color-mix(in srgb, var(--text-main) 72%, transparent));
+          --line: var(--tef-line, color-mix(in srgb, var(--text-main) 46%, transparent));
+          --version-color: var(--tef-version, color-mix(in srgb, var(--text-main) 40%, transparent));
         }
 
         @media (max-width: 960px) {
@@ -224,42 +238,46 @@ class TeslaEnergyFlowCard extends HTMLElement {
         }
       </style>
 
-      <div class="tec-card__center" part="center" aria-hidden="true">
-        <img class="tec-card__image" part="image" id="homeImage" alt="Home" />
-        <div class="tec-card__image-fallback" part="image-fallback" id="homeFallback">home.png non trovato</div>
-      </div>
+      <ha-card part="ha-card">
+        <div class="tec-card">
+          <div class="tec-card__center" part="center" aria-hidden="true">
+            <img class="tec-card__image" part="image" id="homeImage" alt="Home" />
+            <div class="tec-card__image-fallback" part="image-fallback" id="homeFallback">home.png non trovato</div>
+          </div>
 
-      <div class="tec-card__node" part="node node-home" id="n-home" style="left: 26%; top: 22%; --line-len: 238px;">
-        <div class="tec-card__title" part="title title-home" data-title="home">Casa</div>
-        <div class="tec-card__value" part="value value-home" data-k="home">--</div>
-        <div class="tec-card__line tec-card__line--down" part="line line-home line-down"></div>
-      </div>
+          <div class="tec-card__node" part="node node-home" id="n-home" style="left: 26%; top: 22%; --line-len: 238px;">
+            <div class="tec-card__title" part="title title-home" data-title="home">Casa</div>
+            <div class="tec-card__value" part="value value-home" data-k="home">--</div>
+            <div class="tec-card__line tec-card__line--down" part="line line-home line-down"></div>
+          </div>
 
-      <div class="tec-card__node" part="node node-solar" id="n-solar" style="left: 66%; top: 20%; --line-len: 206px;">
-        <div class="tec-card__title" part="title title-solar" data-title="solar">Pannelli Solari</div>
-        <div class="tec-card__value" part="value value-solar" data-k="solar">--</div>
-        <div class="tec-card__line tec-card__line--down" part="line line-solar line-down"></div>
-      </div>
+          <div class="tec-card__node" part="node node-solar" id="n-solar" style="left: 66%; top: 20%; --line-len: 206px;">
+            <div class="tec-card__title" part="title title-solar" data-title="solar">Pannelli Solari</div>
+            <div class="tec-card__value" part="value value-solar" data-k="solar">--</div>
+            <div class="tec-card__line tec-card__line--down" part="line line-solar line-down"></div>
+          </div>
 
-      <div class="tec-card__node" part="node node-grid" id="n-grid" style="left: 84%; top: 66%; --line-len: 125px;">
-        <div class="tec-card__title" part="title title-grid" data-title="grid">Rete</div>
-        <div class="tec-card__value" part="value value-grid" data-k="grid">--</div>
-        <div class="tec-card__line tec-card__line--up" part="line line-grid line-up"></div>
-      </div>
+          <div class="tec-card__node" part="node node-grid" id="n-grid" style="left: 84%; top: 66%; --line-len: 125px;">
+            <div class="tec-card__title" part="title title-grid" data-title="grid">Rete</div>
+            <div class="tec-card__value" part="value value-grid" data-k="grid">--</div>
+            <div class="tec-card__line tec-card__line--up" part="line line-grid line-up"></div>
+          </div>
 
-      <div class="tec-card__node" part="node node-battery" id="n-battery" style="left: 50%; top: 86%; --line-len: 124px;">
-        <div class="tec-card__title" part="title title-battery" data-title="battery">Batteria</div>
-        <div class="tec-card__value" part="value value-battery" data-k="battery">--</div>
-        <div class="tec-card__line tec-card__line--up" part="line line-battery line-up"></div>
-      </div>
+          <div class="tec-card__node" part="node node-battery" id="n-battery" style="left: 50%; top: 86%; --line-len: 124px;">
+            <div class="tec-card__title" part="title title-battery" data-title="battery">Batteria</div>
+            <div class="tec-card__value" part="value value-battery" data-k="battery">--</div>
+            <div class="tec-card__line tec-card__line--up" part="line line-battery line-up"></div>
+          </div>
 
-      <div class="tec-card__node" part="node node-car" id="n-car" style="left: 16%; top: 66%; --line-len: 125px;">
-        <div class="tec-card__title" part="title title-car" data-title="car">Auto</div>
-        <div class="tec-card__value" part="value value-car" data-k="car">--</div>
-        <div class="tec-card__line tec-card__line--up" part="line line-car line-up"></div>
-      </div>
+          <div class="tec-card__node" part="node node-car" id="n-car" style="left: 16%; top: 66%; --line-len: 125px;">
+            <div class="tec-card__title" part="title title-car" data-title="car">Auto</div>
+            <div class="tec-card__value" part="value value-car" data-k="car">--</div>
+            <div class="tec-card__line tec-card__line--up" part="line line-car line-up"></div>
+          </div>
 
-      <div class="tec-card__version" id="cardVersion">v${TeslaEnergyFlowCard.version}</div>
+          <div class="tec-card__version" id="cardVersion">v${TeslaEnergyFlowCard.version}</div>
+        </div>
+      </ha-card>
     `;
 
     this.shadowRoot.innerHTML = "";
@@ -278,19 +296,41 @@ class TeslaEnergyFlowCard extends HTMLElement {
       },
     };
 
-    this._elements.image.addEventListener("error", () => {
-      this._elements.image.style.display = "none";
-      this._elements.fallback.style.display = "flex";
-    });
-
-    this._elements.image.addEventListener("load", () => {
-      this._elements.image.style.display = "block";
-      this._elements.fallback.style.display = "none";
-    });
-
     if (this._elements.version) {
       this._elements.version.textContent = `v${TeslaEnergyFlowCard.version}`;
     }
+  }
+
+  _setImageSource(primaryUrl) {
+    const urls = [
+      primaryUrl,
+      TeslaEnergyFlowCard._assetUrl("home.png"),
+      `${window.location.origin}/local/home.png`,
+    ].filter(Boolean);
+
+    const unique = [...new Set(urls)];
+    let idx = 0;
+
+    const tryNext = () => {
+      if (idx >= unique.length) {
+        this._elements.image.style.display = "none";
+        this._elements.fallback.style.display = "flex";
+        return;
+      }
+      const url = unique[idx++];
+      this._elements.image.src = url;
+    };
+
+    const onError = () => tryNext();
+    const onLoad = () => {
+      this._elements.image.removeEventListener("error", onError);
+      this._elements.image.style.display = "block";
+      this._elements.fallback.style.display = "none";
+    };
+
+    this._elements.image.addEventListener("error", onError, { once: true });
+    this._elements.image.addEventListener("load", onLoad, { once: true });
+    tryNext();
   }
 
   _toNumber(v, fallback = null) {
