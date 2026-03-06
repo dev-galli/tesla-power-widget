@@ -19,13 +19,22 @@ Custom Lovelace card (senza framework) con layout minimale stile Tesla:
 5. Verifica risorsa:
    - `/hacsfiles/tesla-power-widget/tesla-energy-flow-card.js` (tipo `module`)
 
-## Aggiornamenti automatici HACS
+## Aggiornamenti automatici HACS (controllati)
 
 Il repository include il workflow GitHub Actions:
 
-`/.github/workflows/hacs-release.yml`
+`/.github/workflows/hacs-release.yml` + `release.json`
 
-A ogni push su `main` crea automaticamente un nuovo tag/release, così HACS può segnalare un aggiornamento disponibile senza creazione manuale della release.
+A ogni push su `main` il workflow legge `release.json`:
+
+```json
+{ "release_version": "1.0" }
+```
+
+- se cambi `release_version`, crea il nuovo tag/release (`v1.0.0`)
+- se non cambi `release_version`, non crea nulla
+
+Quindi sei tu a controllare quando HACS deve proporre l'update.
 
 ## Asset richiesto
 

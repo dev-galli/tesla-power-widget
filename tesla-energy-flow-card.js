@@ -1,5 +1,5 @@
 class TeslaEnergyFlowCard extends HTMLElement {
-  static version = "0.2.7";
+  static version = "0.2.8";
   static _assetBaseUrl = null;
 
   constructor() {
@@ -380,18 +380,18 @@ class TeslaEnergyFlowCard extends HTMLElement {
 
     const repo = "francescogalli-design/tesla-power-widget";
     const versionTag = `v${TeslaEnergyFlowCard.version}`;
-    const githubVersioned = `https://raw.githubusercontent.com/${repo}/${versionTag}/home.png`;
-    const githubMain = `https://raw.githubusercontent.com/${repo}/main/home.png`;
+    const githubVersioned = `https://raw.githubusercontent.com/${repo}/${versionTag}/home.png?v=${encodeURIComponent(TeslaEnergyFlowCard.version)}`;
+    const githubMain = `https://raw.githubusercontent.com/${repo}/main/home.png?v=${encodeURIComponent(TeslaEnergyFlowCard.version)}`;
     const cacheKey = `tef_home_png_${TeslaEnergyFlowCard.version}`;
     const cachedDataUrl = this._storageGet(cacheKey);
 
     const urls = [
       cachedDataUrl,
       primaryUrl,
-      TeslaEnergyFlowCard._assetUrl("home.png"),
-      `${window.location.origin}/local/home.png`,
       githubVersioned,
       githubMain,
+      TeslaEnergyFlowCard._assetUrl("home.png"),
+      `${window.location.origin}/local/home.png`,
     ].filter(Boolean);
 
     this._loadFirstWorkingImage(urls, token);

@@ -22,10 +22,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          RAW_VERSION=$(python3 - <<'PY'
+import json
+with open("release.json", "r", encoding="utf-8") as f:
+    data = json.load(f)
+print(str(data.get("release_version", "")).strip())
+PY
+)
+          if [ -z "${RAW_VERSION}" ]; then
+            echo "release.json missing release_version" >&2
+            exit 1
+          fi
 
-          BASE_VERSION=$(grep -Eo 'static version = "[0-9]+\.[0-9]+\.[0-9]+"' tesla-energy-flow-card.js | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
-          if [ -z "${BASE_VERSION}" ]; then
-            echo "Unable to extract base version from tesla-energy-flow-card.js" >&2
+          # Support both 1.0 and 1.0.0
+          if [[ "${RAW_VERSION}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+            BASE_VERSION="${RAW_VERSION}.0"
+          else
+            BASE_VERSION="${RAW_VERSION}"
+          fi
+
+          if ! [[ "${BASE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release_version format: ${RAW_VERSION}" >&2
             exit 1
           fi
 
