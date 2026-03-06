@@ -56,17 +56,33 @@ PY
         shell: bash
         run: |
           set -euo pipefail
-          if git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
-            echo "Tag already exists: ${{ steps.version.outputs.tag }}. Skipping release."
+          TAG="${{ steps.version.outputs.tag }}"
+
+          # Idempotent: if tag exists on remote, skip tag creation without failing.
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag already exists on remote: ${TAG}. Skipping tag push."
             echo "created=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git tag "${{ steps.version.outputs.tag }}"
-          git push origin "${{ steps.version.outputs.tag }}"
-          echo "created=true" >> "$GITHUB_OUTPUT"
+
+          git tag "${TAG}"
+
+          # Handle race conditions gracefully (e.g. another process creates tag first).
+          if git push origin "${TAG}"; then
+            echo "created=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag appeared on remote during push: ${TAG}. Continuing."
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Failed to create/push tag ${TAG}" >&2
+          exit 1
 
       - name: Create GitHub release
-        if: steps.create_tag.outputs.created == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
